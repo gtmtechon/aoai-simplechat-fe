@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChatGPT 스타일 AI 챗봇 (Azure 테마)</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Inter 폰트 적용 (Tailwind 기본 폰트와 유사하지만 명시) */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0A192F; /* Dark Azure Blue - Deep navy */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            color: #E0E7FF; /* Light blue text for dark background */
+        }
+        .chat-container {
+            width: 100%;
+            max-width: 768px; /* ChatGPT 웹의 폭에 가깝게 */
+            height: 95vh; /* 화면 높이의 95% */
+            display: flex;
+            flex-direction: column;
+            background-color: #0F213A; /* Slightly lighter navy for container */
+            border-radius: 0.75rem; /* rounded-xl */
+            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+            border: 1px solid #1C335A; /* Subtle border */
+        }
+        .header {
+            padding: 1rem 1.5rem;
+            background-color: #123C6D; /* Header background - Mid-Azure Blue */
+            color: white;
+            text-align: center;
+            font-size: 1.5rem; /* text-2xl */
+            font-weight: 600; /* font-semibold */
+            border-bottom: 1px solid #1C335A;
+        }
+        .messages {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 1.5rem;
+            background-color: #0A192F; /* Same as body background for seamless look */
+            line-height: 1.6; /* 가독성 향상 */
+        }
+        .message-wrapper {
+            display: flex;
+            padding: 1rem 0;
+            margin-bottom: 0.5rem;
+            border-radius: 0.5rem;
+        }
+        .message-content {
+            flex-grow: 1;
+            max-width: calc(100% - 40px); /* 아이콘 너비만큼 제외 */
+            word-wrap: break-word; /* 긴 텍스트 자동 줄바꿈 */
+            white-space: pre-wrap; /* 줄바꿈 문자 (\n) 인식 및 공백 유지 */
+        }
+        .user-message .message-wrapper {
+            justify-content: flex-end;
+            background-color: rgba(64, 150, 255, 0.3); /* Transparent Azure Blue tint for user bubble */
+            border-radius: 0.75rem;
+            padding: 1rem;
+        }
+        .user-message .message-content {
+            color: #DDEEFF; /* Lighter blue for user text */
+        }
+        .bot-message .message-wrapper {
+            justify-content: flex-start;
+            background-color: #0F2E52; /* Slightly lighter navy for bot bubble */
+            border-radius: 0.75rem;
+            padding: 1rem;
+        }
+        .bot-message .message-content {
+            color: #E0E7FF; /* General light blue text color for bot */
+        }
+        .message-avatar {
+            flex-shrink: 0;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+            color: white;
+            margin: 0 1rem; /* Adjust margin */
+        }
+        .user-message .message-avatar {
+            background-color: #0078D4; /* Azure Blue for user avatar */
+            order: 2; /* User avatar on the right */
+        }
+        .bot-message .message-avatar {
+            background-color: #4A6E8A; /* Grayish-blue for bot avatar */
+            order: 1; /* Bot avatar on the left */
+        }
+
+        /* 마크다운 스타일 */
+        .message-content h3 {
+            font-size: 1.25rem; /* text-xl */
+            font-weight: 600; /* font-semibold */
+            margin-top: 1rem;
+            margin-bottom: 0.5rem;
+            color: #90CAF9; /* Lighter blue for headers */
+        }
+        .message-content h4 {
+            font-size: 1.125rem; /* text-lg */
+            font-weight: 500; /* font-medium */
+            margin-top: 0.75rem;
+            margin-bottom: 0.25rem;
+            color: #BBDEFB; /* Even lighter blue */
+        }
+        .message-content strong {
+            font-weight: 700; /* Bold for strong text */
+            color: #90CAF9; /* Lighter blue for bold text */
+        }
+        .message-content hr {
+            border: 0;
+            height: 1px;
+            background: #254F7F; /* Darker blue for HR */
+            margin: 1.5rem 0;
+        }
+        .message-content pre {
+            background-color: #05101F; /* Very dark blue for code blocks */
+            color: #CFD8DC; /* Light gray for code text */
+            padding: 1rem;
+            border-radius: 0.5rem;
+            overflow-x: auto; /* Horizontal scroll for long lines */
+            margin: 1rem 0;
+            font-family: 'Fira Code', 'Cascadia Code', 'Consolas', monospace; /* Monospace font for code */
+        }
+        .message-content code {
+            font-family: 'Fira Code', 'Cascadia Code', 'Consolas', monospace; /* Monospace font for inline code */
+            background-color: #123C6D; /* Header background blue for inline code */
+            padding: 0.2em 0.4em;
+            border-radius: 0.25em;
+        }
+        .message-content pre code {
+            padding: 0;
+            background-color: transparent;
+        }
+        .message-content ul, .message-content ol {
+            margin-left: 1.5rem;
+            padding-left: 0.5rem;
+            list-style-position: outside;
+        }
+        .message-content li {
+            margin-bottom: 0.5rem;
+        }
+        .message-content ul {
+            list-style-type: disc;
+        }
+        .message-content ol {
+            list-style-type: decimal;
+        }
+
+        .input-area {
+            display: flex;
+            padding: 1rem;
+            background-color: #0F2E52; /* Input area background */
+            border-top: 1px solid #1C335A;
+            align-items: center;
+        }
+        .input-area input[type="text"] {
+            flex-grow: 1;
+            padding: 0.75rem 1rem;
+            border: 1px solid #254F7F; /* Darker blue border */
+            border-radius: 0.5rem;
+            background-color: #0A192F; /* Input field background - Deep navy */
+            color: #E0E7FF; /* Input text color */
+            outline: none;
+            box-shadow: none; /* Remove default focus glow */
+            transition: border-color 0.2s;
+        }
+        .input-area input[type="text"]:focus {
+            border-color: #0078D4; /* Azure Blue focus ring */
+            box-shadow: 0 0 0 2px rgba(0, 120, 212, 0.2);
+        }
+        .input-area button {
+            margin-left: 0.75rem;
+            padding: 0.75rem 1.25rem;
+            background-color: #0078D4; /* Azure Blue for button */
+            color: white;
+            border-radius: 0.5rem;
+            font-weight: 500;
+            transition: background-color 0.2s ease-in-out;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .input-area button:hover:not(:disabled) {
+            background-color: #005A9E; /* Darker Azure Blue on hover */
+        }
+        .input-area button:disabled {
+            background-color: #254F7F; /* Disabled color */
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+        .loader {
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top: 3px solid #FFF;
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            animation: spin 1s linear infinite;
+            display: none;
+            margin-left: 0.5rem;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-gray-900 flex items-center justify-center min-h-screen p-4">
+    <div class="chat-container">
+        <div class="header">
+            ChatGPT 스타일 챗봇 (Azure 테마)
+        </div>
+        <div id="messages" class="messages flex flex-col">
+            <!-- Messages will be appended here -->
+        </div>
+        <div class="input-area">
+            <input type="text" id="userInput" placeholder="메시지를 입력하세요..." autofocus>
+            <button id="sendBtn">
+                전송
+                <div id="loader" class="loader"></div>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const BACKEND_API_URL = "https://aoai-simplechat-be.azurewebsites.net/chat"; // Azure App Service URL로 변경 필수!
+
+        const messagesDiv = document.getElementById('messages');
+        const userInput = document.getElementById('userInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const loader = document.getElementById('loader');
+
+        let sessionId = sessionStorage.getItem('chatbotSessionId');
+        if (!sessionId) {
+            sessionId = crypto.randomUUID();
+            sessionStorage.setItem('chatbotSessionId', sessionId);
+            console.log("새 세션 ID 생성:", sessionId);
+            appendMessage("안녕하세요! 무엇을 도와드릴까요?", "bot");
+        } else {
+            console.log("기존 세션 ID 사용:", sessionId);
+            // 페이지 새로고침 시에도 대화 기록 유지 로직 (백엔드 DB 연동 시 필요)
+            appendMessage("다시 오신 것을 환영합니다! 계속 대화해주세요.", "bot");
+        }
+
+        // Markdown 렌더링 함수 (간단한 구현)
+        function renderMarkdown(markdownText) {
+            let html = markdownText;
+
+            // 1. 코드 블록 (```code```)
+            html = html.replace(/```(.*?)```/gs, (match, codeContent) => {
+                // 언어 명시 (선택 사항, 첫 줄에 언어가 있다면)
+                const lines = codeContent.split('\n');
+                let lang = '';
+                if (lines.length > 0 && lines[0].match(/^\s*\S+$/)) {
+                    lang = lines[0].trim();
+                    codeContent = lines.slice(1).join('\n');
+                }
+                return `<pre><code class="language-${lang}">${escapeHtml(codeContent.trim())}</code></pre>`;
+            });
+
+            // 2. 인라인 코드 (`code`)
+            html = html.replace(/`(.*?)`/g, '<code>$1</code>');
+
+            // 3. 헤딩 (###, ####)
+            html = html.replace(/^####\s*(.*)$/gm, '<h4>$1</h4>');
+            html = html.replace(/^###\s*(.*)$/gm, '<h3>$1</h3>');
+
+            // 4. 강조 (볼드 **텍스트**)
+            html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+
+            // 5. 수평선 (---)
+            html = html.replace(/^(---|\*\*\*|___)$/gm, '<hr>');
+
+            // 6. 리스트 (순서 없는 리스트 -, *, +, 순서 있는 리스트 1. 2.)
+            // 이 부분은 단순화를 위해 단일 라인만 처리하며, 중첩 리스트는 지원하지 않습니다.
+            html = html.replace(/^[*-+]\s*(.*)$/gm, '<li>$1</li>');
+            html = html.replace(/^(\d+\.)\s*(.*)$/gm, '<li>$2</li>'); // 숫자.
+            
+            // 7. 일반 줄바꿈은 CSS white-space: pre-wrap; 이 처리.
+
+            return html;
+        }
+
+        function escapeHtml(text) {
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+        }
+
+        /**
+         * 챗봇 메시지를 HTML에 추가하고 스타일을 적용합니다.
+         * @param {string} text - 표시할 메시지 텍스트.
+         * @param {string} sender - 'user' 또는 'bot'.
+         * @param {HTMLElement} [targetElement] - 텍스트를 스트리밍할 대상 요소 (봇 메시지 전용).
+         */
+        function appendMessage(text, sender, targetElement = null) {
+            let messageContentElement; // 메시지 텍스트가 들어갈 실제 요소
+
+            if (targetElement) {
+                // 스트리밍 중인 경우 기존 요소 사용
+                messageContentElement = targetElement;
+            } else {
+                // 새로운 메시지 버블 생성
+                const messageWrapper = document.createElement('div');
+                messageWrapper.classList.add('message-wrapper');
+
+                const avatar = document.createElement('div');
+                avatar.classList.add('message-avatar');
+                const contentDiv = document.createElement('div');
+                contentDiv.classList.add('message-content');
+                
+                messageContentElement = contentDiv; // 메시지 텍스트는 이 div에 들어감
+
+                if (sender === 'user') {
+                    messageWrapper.classList.add('user-message');
+                    avatar.textContent = 'YOU'; // 사용자 아바타 텍스트
+                    messageWrapper.appendChild(contentDiv);
+                    messageWrapper.appendChild(avatar);
+                } else {
+                    messageWrapper.classList.add('bot-message');
+                    avatar.textContent = 'AI'; // 봇 아바타 텍스트
+                    messageWrapper.appendChild(avatar);
+                    messageWrapper.appendChild(contentDiv);
+                }
+                messagesDiv.appendChild(messageWrapper);
+            }
+
+            // 텍스트를 HTML로 렌더링
+            messageContentElement.innerHTML = renderMarkdown(text);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight; // 스크롤을 항상 아래로
+            return messageContentElement; // 스트리밍을 위해 반환
+        }
+
+        async function sendMessage() {
+            const message = userInput.value.trim();
+            if (message === "") return;
+
+            // 사용자 메시지 즉시 표시
+            appendMessage(message, 'user');
+            userInput.value = ''; // 입력 필드 초기화
+
+            sendBtn.disabled = true; // 버튼 비활성화
+            loader.style.display = 'block'; // 로더 표시
+
+            // 봇 메시지 버블 미리 생성하고 스트리밍할 요소 가져오기
+            const botMessageContentElement = appendMessage("", "bot");
+            let receivedText = ""; // 스트리밍으로 받은 전체 텍스트를 저장
+
+            try {
+                const response = await fetch(BACKEND_API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ message: message, sessionId: sessionId })
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text(); // 오류 메시지는 텍스트로 받음
+                    throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+                }
+
+                // 스트리밍 응답 처리
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder('utf-8');
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    const chunk = decoder.decode(value, { stream: true });
+                    receivedText += chunk;
+                    
+                    // 받은 텍스트를 실시간으로 렌더링
+                    appendMessage(receivedText, 'bot', botMessageContentElement);
+                }
+
+            } catch (error) {
+                console.error("챗봇 응답 오류:", error);
+                appendMessage(`죄송합니다. 서비스에 문제가 발생했습니다. (${error.message || error}) 잠시 후 다시 시도해주세요.`, "bot", botMessageContentElement);
+            } finally {
+                sendBtn.disabled = false; // 버튼 활성화
+                loader.style.display = 'none'; // 로더 숨김
+            }
+        }
+
+        sendBtn.addEventListener('click', sendMessage);
+
+        userInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        // Backend API URL이 설정되었는지 확인하는 초기 로딩 시 메시지
+        document.addEventListener('DOMContentLoaded', () => {
+            if (BACKEND_API_URL.includes("YOUR_BACKEND_APP_SERVICE_URL")) {
+                appendMessage("⚠️ 백엔드 API URL을 `index.html` 파일에 설정해주세요.", "bot");
+                sendBtn.disabled = true;
+            }
+        });
+    </script>
+</body>
+</html>
