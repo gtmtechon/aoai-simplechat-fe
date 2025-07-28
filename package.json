@@ -1,5 +1,13 @@
-"scripts": {
-  "serve": "vue-cli-service serve",
-  "build": "vue-cli-service build",
-  "lint": "vue-cli-service lint"
+{
+  "name": "your-project-name",
+  "version": "1.0.0",
+  "description": "A simple static HTML website.",
+  "main": "index.js",
+  "scripts": {
+    "build": "echo \"Building static HTML files...\"",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
 }
