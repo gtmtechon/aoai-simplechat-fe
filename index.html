@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>심플 AI 챗봇</title>
     <!-- Tailwind CSS CDN -->
-    <script src="[https://cdn.tailwindcss.com](https://cdn.tailwindcss.com)"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -40,6 +40,7 @@
             border-radius: 1rem; /* rounded-xl */
             margin-bottom: 0.5rem;
             word-wrap: break-word; /* 긴 텍스트 자동 줄바꿈 */
+            white-space: pre-wrap; /* 줄바꿈 문자 (\n) 인식 및 공백 유지 */
         }
         .user-message {
             background-color: #3b82f6; /* bg-blue-500 */
@@ -52,11 +53,34 @@
             color: #1a202c; /* text-gray-900 */
             align-self: flex-start; /* justify-self-start */
             margin-right: auto;
+            display: flex; /* 아이콘과 텍스트를 같은 줄에 정렬 */
+            align-items: flex-start; /* 아이콘과 텍스트 상단 정렬 */
         }
-        .input-area {
-            display: flex;
-            padding: 1rem;
-            border-top: 1px solid #e2e8f0; /* border-gray-200 */
+        .bot-icon {
+            flex-shrink: 0; /* 아이콘이 줄어들지 않도록 */
+            margin-right: 0.5rem; /* 아이콘과 텍스트 사이 간격 */
+            width: 20px; /* 아이콘 크기 */
+            height: 20px; /* 아이콘 크기 */
+            fill: #4a5568; /* 아이콘 색상 (gray-700) */
+        }
+        /* 헤딩 스타일 (Tailwind 기본 스타일 위에 추가) */
+        .message-bubble h3 {
+            font-size: 1.25rem; /* text-xl */
+            font-weight: 700; /* font-bold */
+            margin-top: 1rem;
+            margin-bottom: 0.5rem;
+        }
+        .message-bubble h4 {
+            font-size: 1.125rem; /* text-lg */
+            font-weight: 600; /* font-semibold */
+            margin-top: 0.75rem;
+            margin-bottom: 0.25rem;
+        }
+        .message-bubble hr {
+            border: 0;
+            height: 1px;
+            background: #a0aec0; /* gray-400 */
+            margin: 1rem 0;
         }
         .loader {
             border: 4px solid #f3f3f3;
@@ -96,7 +120,7 @@
     <script>
         // 백엔드 API 엔드포인트 URL을 여기에 입력하세요.
         // Azure App Service 배포 후 해당 URL을 사용합니다.
-        const BACKEND_API_URL = "https://aoai-simplechat-be.azurewebsites.net/chat"; // 예: "[https://my-simple-chatbot-backend.azurewebsites.net/chat](https://my-simple-chatbot-backend.azurewebsites.net/chat)"
+        const BACKEND_API_URL = "https://aoai-simplechat-be.azurewebsites.net/chat"; // 예: "https://my-simple-chatbot-backend.azurewebsites.net/chat"
 
         const messagesDiv = document.getElementById('messages');
         const userInput = document.getElementById('userInput');
@@ -117,15 +141,44 @@
             appendMessage("다시 오신 것을 환영합니다! 계속 대화해주세요.", "bot");
         }
 
+        /**
+         * 챗봇 메시지를 HTML에 추가하고 스타일을 적용합니다.
+         * @param {string} text - 표시할 메시지 텍스트.
+         * @param {string} sender - 'user' 또는 'bot'.
+         */
         function appendMessage(text, sender) {
             const messageBubble = document.createElement('div');
             messageBubble.classList.add('message-bubble');
-            messageBubble.textContent = text;
+
+            let processedHtml = text;
+
+            // 1. 수평선 처리 (---) - 줄의 시작에 오는 경우만 처리
+            processedHtml = processedHtml.replace(/^(---)$/gm, '<hr>');
+
+            // 2. 헤딩 처리 (####, ###) - H4를 먼저 처리해야 H3와 겹치지 않습니다.
+            // 줄의 시작에 오는 경우만 처리
+            processedHtml = processedHtml.replace(/^####\s*(.*)$/gm, '<h4>$1</h4>');
+            processedHtml = processedHtml.replace(/^###\s*(.*)$/gm, '<h3>$1</h3>');
+
+            // 3. 강조 (볼드 **텍스트**)
+            processedHtml = processedHtml.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+
+            // 4. 일반 줄바꿈은 CSS white-space: pre-wrap; 이 처리하므로 별도 변환 불필요.
 
             if (sender === 'user') {
                 messageBubble.classList.add('user-message');
+                messageBubble.innerHTML = processedHtml; // 사용자 메시지는 아이콘 없음
             } else {
                 messageBubble.classList.add('bot-message');
+                // 봇 아이콘 추가 (SVG)
+                const botIcon = `
+                    <svg class="bot-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm-1 15h2v-2h-2v2zm0-4h2V7h-2v6z"/>
+                    </svg>
+                `;
+                // 아이콘과 메시지를 함께 추가
+                // 봇 메시지 내용 전체를 감싸는 div를 추가하여 아이콘과 텍스트가 정렬되도록 함
+                messageBubble.innerHTML = botIcon + `<div class="message-content-wrapper">${processedHtml}</div>`;
             }
             messagesDiv.appendChild(messageBubble);
             messagesDiv.scrollTop = messagesDiv.scrollHeight; // 스크롤을 항상 아래로
