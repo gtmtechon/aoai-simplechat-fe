@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Simple Chatbot on AOAI(gtp4o)</title>
+    <title>ChatGPT 스타일 AI 챗봇 (Azure 테마)</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -248,7 +248,6 @@
             appendMessage("안녕하세요! 무엇을 도와드릴까요?", "bot");
         } else {
             console.log("기존 세션 ID 사용:", sessionId);
-            // 페이지 새로고침 시에도 대화 기록 유지 로직 (백엔드 DB 연동 시 필요)
             appendMessage("다시 오신 것을 환영합니다! 계속 대화해주세요.", "bot");
         }
 
@@ -258,7 +257,6 @@
 
             // 1. 코드 블록 (```code```)
             html = html.replace(/```(.*?)```/gs, (match, codeContent) => {
-                // 언어 명시 (선택 사항, 첫 줄에 언어가 있다면)
                 const lines = codeContent.split('\n');
                 let lang = '';
                 if (lines.length > 0 && lines[0].match(/^\s*\S+$/)) {
@@ -282,9 +280,8 @@
             html = html.replace(/^(---|\*\*\*|___)$/gm, '<hr>');
 
             // 6. 리스트 (순서 없는 리스트 -, *, +, 순서 있는 리스트 1. 2.)
-            // 이 부분은 단순화를 위해 단일 라인만 처리하며, 중첩 리스트는 지원하지 않습니다.
             html = html.replace(/^[*-+]\s*(.*)$/gm, '<li>$1</li>');
-            html = html.replace(/^(\d+\.)\s*(.*)$/gm, '<li>$2</li>'); // 숫자.
+            html = html.replace(/^(\d+\.)\s*(.*)$/gm, '<li>$2</li>');
             
             // 7. 일반 줄바꿈은 CSS white-space: pre-wrap; 이 처리.
 
@@ -309,7 +306,25 @@
          * @param {HTMLElement} [targetElement] - 텍스트를 스트리밍할 대상 요소 (봇 메시지 전용).
          */
         function appendMessage(text, sender, targetElement = null) {
-            let messageContentElement; // 메시지 텍스트가 들어갈 실제 요소
+            let messageContentElement;
+            let displayContent = text; // 기본적으로 입력된 텍스트
+
+            // 만약 텍스트가 JSON 문자열처럼 보인다면 파싱 시도
+            if (sender === 'bot' && text.startsWith('{') && text.endsWith('}')) {
+                try {
+                    const parsed = JSON.parse(text);
+                    if (parsed.response) {
+                        displayContent = parsed.response;
+                    } else if (parsed.error) {
+                        displayContent = parsed.error;
+                    }
+                    // 다른 JSON 필드가 있다면 필요에 따라 처리
+                } catch (e) {
+                    // JSON 파싱 실패, 그냥 일반 텍스트로 처리
+                    console.warn("Received string looked like JSON but could not be parsed:", text, e);
+                }
+            }
+
 
             if (targetElement) {
                 // 스트리밍 중인 경우 기존 요소 사용
@@ -324,16 +339,16 @@
                 const contentDiv = document.createElement('div');
                 contentDiv.classList.add('message-content');
                 
-                messageContentElement = contentDiv; // 메시지 텍스트는 이 div에 들어감
+                messageContentElement = contentDiv;
 
                 if (sender === 'user') {
                     messageWrapper.classList.add('user-message');
-                    avatar.textContent = 'YOU'; // 사용자 아바타 텍스트
+                    avatar.textContent = 'YOU';
                     messageWrapper.appendChild(contentDiv);
                     messageWrapper.appendChild(avatar);
                 } else {
                     messageWrapper.classList.add('bot-message');
-                    avatar.textContent = 'AI'; // 봇 아바타 텍스트
+                    avatar.textContent = 'AI';
                     messageWrapper.appendChild(avatar);
                     messageWrapper.appendChild(contentDiv);
                 }
@@ -341,25 +356,23 @@
             }
 
             // 텍스트를 HTML로 렌더링
-            messageContentElement.innerHTML = renderMarkdown(text);
-            messagesDiv.scrollTop = messagesDiv.scrollHeight; // 스크롤을 항상 아래로
-            return messageContentElement; // 스트리밍을 위해 반환
+            messageContentElement.innerHTML = renderMarkdown(displayContent);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            return messageContentElement;
         }
 
         async function sendMessage() {
             const message = userInput.value.trim();
             if (message === "") return;
 
-            // 사용자 메시지 즉시 표시
             appendMessage(message, 'user');
-            userInput.value = ''; // 입력 필드 초기화
+            userInput.value = '';
 
-            sendBtn.disabled = true; // 버튼 비활성화
-            loader.style.display = 'block'; // 로더 표시
+            sendBtn.disabled = true;
+            loader.style.display = 'block';
 
-            // 봇 메시지 버블 미리 생성하고 스트리밍할 요소 가져오기
             const botMessageContentElement = appendMessage("", "bot");
-            let receivedText = ""; // 스트리밍으로 받은 전체 텍스트를 저장
+            let receivedText = "";
 
             try {
                 const response = await fetch(BACKEND_API_URL, {
@@ -371,11 +384,10 @@
                 });
 
                 if (!response.ok) {
-                    const errorText = await response.text(); // 오류 메시지는 텍스트로 받음
+                    const errorText = await response.text();
                     throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
                 }
 
-                // 스트리밍 응답 처리
                 const reader = response.body.getReader();
                 const decoder = new TextDecoder('utf-8');
 
@@ -392,10 +404,11 @@
 
             } catch (error) {
                 console.error("챗봇 응답 오류:", error);
+                // 오류 메시지 자체에 파싱 로직을 적용하여 표시
                 appendMessage(`죄송합니다. 서비스에 문제가 발생했습니다. (${error.message || error}) 잠시 후 다시 시도해주세요.`, "bot", botMessageContentElement);
             } finally {
-                sendBtn.disabled = false; // 버튼 활성화
-                loader.style.display = 'none'; // 로더 숨김
+                sendBtn.disabled = false;
+                loader.style.display = 'none';
             }
         }
 
@@ -407,7 +420,6 @@
             }
         });
 
-        // Backend API URL이 설정되었는지 확인하는 초기 로딩 시 메시지
         document.addEventListener('DOMContentLoaded', () => {
             if (BACKEND_API_URL.includes("YOUR_BACKEND_APP_SERVICE_URL")) {
                 appendMessage("⚠️ 백엔드 API URL을 `index.html` 파일에 설정해주세요.", "bot");
